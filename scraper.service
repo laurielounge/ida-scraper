@@ -1,0 +1,16 @@
+[Unit]
+Description=IDA FastAPI Scraper Service
+After=network.target
+
+[Service]
+User=root
+Group=root
+WorkingDirectory=/opt/scraper_service
+ExecStart=/opt/scraper_venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000
+MemoryMax=5G
+CPUQuota=75%
+Nice=10
+
+[Install]
+WantedBy=multi-user.target
+

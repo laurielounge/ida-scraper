@@ -37,3 +37,4 @@ CUSTOM_LOG_LEVELS = {
 SPIDER_MODULES = ['scraper_details.spiders']
 NEWSPIDER_MODULE = 'scraper_details.spiders'
 DUPEFILTER_CLASS = 'scrapy.dupefilters.RFPDupeFilter'
+SELENIUM_DRIVER_ARGUMENTS = ['--headless', '--disable-dev-shm-usage', '--no-sandbox']

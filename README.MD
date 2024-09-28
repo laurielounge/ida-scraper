@@ -1,4 +1,6 @@
 # Scrapy Service #
+This is IDA's scraping service. It's a Scrapy project that scrapes websites for data.
+It uses selenium to break scrape busters and render javascript.
 
 You're here because audit x hasn't run.
 
