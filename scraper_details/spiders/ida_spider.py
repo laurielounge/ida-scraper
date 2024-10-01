@@ -104,7 +104,6 @@ class IdaSpider(scrapy.Spider):
     def create_page_item(self, response, page_id):
         content_type = response.headers.get('Content-Type', b'').decode('utf-8')
         if not content_type:
-            self.logger.warning(f'Content-Type header is missing for {response.url}')
             content_type = 'unknown'
 
         title = response.css('title::text').get()
