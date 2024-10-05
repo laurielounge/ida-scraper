@@ -1,11 +1,13 @@
 # scraper_details/middlewares.py
+import logging
 import random
+import traceback
 
 from scrapy import signals
 from scrapy.exceptions import IgnoreRequest
 from scrapy.http import HtmlResponse
 from selenium import webdriver
-import logging
+from selenium.common.exceptions import TimeoutException, WebDriverException  # Add WebDriverException for more coverage
 
 logger = logging.getLogger("ida_audit")
 logger.info("Opening middlewares file.")
@@ -48,6 +50,7 @@ class SeleniumMiddleware:
         options.add_argument("--disable-gpu")
         options.add_argument("--no-sandbox")
         self.driver = webdriver.Chrome(options=options)
+        self.driver.set_page_load_timeout(60)
 
     @classmethod
     def from_crawler(cls, crawler):
@@ -56,13 +59,27 @@ class SeleniumMiddleware:
         return s
 
     def process_request(self, request, spider):
+        if 'cached' in request.meta:
+            # Skip Selenium if response is from cache
+            spider.logger.info(f"Skipping Selenium for cached request: {request.url}")
+            return None
+        spider.logger.info(f"Using Selenium for request: {request.url}")
         try:
-            logger.info(f"Using Selenium to process request for URL: {request.url}")
             self.driver.get(request.url)
             body = str.encode(self.driver.page_source)
             return HtmlResponse(self.driver.current_url, body=body, encoding='utf-8', request=request)
+        except TimeoutException:
+            # Log only the necessary details, no full stack trace
+            logger.error(f"Timeout processing request for URL: {request.url}")
+            return HtmlResponse(request.url, status=504, body=b"Timeout exceeded")
+        except WebDriverException as e:
+            # Log a summary of the error, no full stack trace
+            logger.error(f"WebDriverException on {request.url}: {str(e)}")
+            return HtmlResponse(request.url, status=500, body=b"WebDriver error")
         except Exception as e:
-            logger.error(f"Error processing request for URL: {request.url} - {e}")
+            # Log the exception with stack trace for unknown errors
+            logger.error(f"Unknown error on {request.url}: {str(e)}")
+            logger.error(traceback.format_exc())  # Capture the full traceback only for unexpected errors
             return HtmlResponse(request.url, status=500, body=str(e).encode('utf-8'))
 
     def spider_closed(self, spider):

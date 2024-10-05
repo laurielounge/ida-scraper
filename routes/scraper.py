@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from crud.audit_cruds import fetch_audit_detail_from_ida, fetch_audit_from_ida, fetch_audit_detail_items_from_ida
 from database.base_route import get_db
 from security.secure_access import validate_api_key
-
+from tasks.scraper_task import run_scrapy_spider
 logger = logging.getLogger("ida_audit")
 router = APIRouter()
 

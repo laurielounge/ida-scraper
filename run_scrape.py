@@ -1,22 +1,16 @@
 from scrapy.crawler import CrawlerProcess
-from database.db_connections import DatabaseConnections
-from scraper_details.spiders.ida_spider import IdaSpider  # Adjust the import path as necessary
 from scrapy.utils.project import get_project_settings
 
-# Assuming fetch functions are correctly implemented
-from crud.audit_cruds import fetch_audit_from_ida, fetch_audit_detail_from_ida, fetch_audit_detail_items_from_ida
+from scraper_details.spiders.ida_spider import IdaSpider  # Adjust the import path as necessary
 
-dbm = DatabaseConnections()
-db = dbm.get_audit_session()
+# Assuming fetch functions are correctly implemented
+
 
 # Assuming the audit_id is dynamically determined or passed to this script
-audit_id = 89
+audit_id = 100
 
 # Fetch the necessary data using your CRUD operations
-audit = fetch_audit_from_ida(audit_id=audit_id)
-website = audit['audit_url']
-audit_detail = fetch_audit_detail_from_ida(audit_id=audit_id, website=website)
-audit_detail_items = fetch_audit_detail_items_from_ida(audit_detail_id=audit_detail['id'])
+website = 'https://au.vushstimulation.com/'
 
 
 # Setup Scrapy crawler
