@@ -11,7 +11,7 @@ origins = [
     "http://scraper",
     "http://localhost",
 ]
-logger.info("Sparking up the app")
+logger.info("Sparking up the app from main.py")
 app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
@@ -27,16 +27,16 @@ app.include_router(scraper_router, prefix='/api')
 app.include_router(redis_router, prefix='/api')
 
 
-# @app.middleware("http")
-# async def log_request(request: Request, call_next):
-#     logger.debug("Here's what the middleware says:")
-#     logger.debug(f"Request URL: {request.url}")
-#     logger.debug(f"Request method: {request.method}")
-#     logger.debug(f"Request headers: {request.headers}")
-#
-#     # Read and log the request body
-#     body = await request.body()
-#     logger.debug(f"Request body: {body.decode('utf-8')}")
-#
-#     response = await call_next(request)
-#     return response
+@app.middleware("http")
+async def log_request(request: Request, call_next):
+    logger.debug("Here's what the middleware says:")
+    logger.debug(f"Request URL: {request.url}")
+    logger.debug(f"Request method: {request.method}")
+    logger.debug(f"Request headers: {request.headers}")
+
+    # Read and log the request body
+    body = await request.body()
+    logger.debug(f"Request body: {body.decode('utf-8')}")
+
+    response = await call_next(request)
+    return response

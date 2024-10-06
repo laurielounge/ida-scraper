@@ -10,7 +10,7 @@ from selenium import webdriver
 from selenium.common.exceptions import TimeoutException, WebDriverException  # Add WebDriverException for more coverage
 
 logger = logging.getLogger("ida_audit")
-logger.info("Opening middlewares file.")
+logger.debug("Opening middlewares file.")
 
 # List of user agents to rotate
 USER_AGENTS = [
