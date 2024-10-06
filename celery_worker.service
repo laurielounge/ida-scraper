@@ -1,0 +1,15 @@
+[Unit]
+Description=Celery Worker Service
+After=network.target
+
+[Service]
+User=celeryuser
+Group=celeryuser
+WorkingDirectory=/opt/scraper_service
+ExecStart=/opt/scraper_venv/bin/celery -A celery_app.celery_app worker --loglevel=info
+ExecStop=/bin/kill -s TERM $MAINPID
+Restart=always
+Environment="PYTHONPATH=/opt/scraper_service"
+
+[Install]
+WantedBy=multi-user.target
