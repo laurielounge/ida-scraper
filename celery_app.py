@@ -8,10 +8,11 @@ celery_app = Celery(
     backend='redis://localhost:6379/0'  # Redis is also used as the result backend
 )
 
+# Configuration update
 celery_app.conf.update(
     task_serializer='json',
     result_serializer='json',
     accept_content=['json'],
-    timezone='UTC',
-    enable_utc=True,
+    timezone='Pacific/Auckland',
+    broker_connection_retry_on_startup=True  # Move this here
 )

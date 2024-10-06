@@ -21,3 +21,4 @@ python-jose[cryptography]
 passlib
 starlette>=0.37.2
 selenium>=4.21.0
+celery
