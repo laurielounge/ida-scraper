@@ -38,6 +38,8 @@ OR
 
 ```bash
 curl -X GET "http://scraper:8000/api/scrape/100" -H "User-Agent: python-requests/2.31.0" -H "Accept-Encoding: gzip, deflate" -H "Accept: */*" -H "Connection: keep-alive" -H "x-api-key: 9qQQdRdmvLKZxxuP7tj6DYFMpmeLcdXk"
+curl -X GET "http://scraper:8000/api/celery-status" -H "User-Agent: python-requests/2.31.0" -H "Accept-Encoding: gzip, deflate" -H "Accept: */*" -H "Connection: keep-alive" -H "x-api-key: 9qQQdRdmvLKZxxuP7tj6DYFMpmeLcdXk"
+curl -X GET "http://scraper:8000/api/hello-world" -H "User-Agent: python-requests/2.31.0" -H "Accept-Encoding: gzip, deflate" -H "Accept: */*" -H "Connection: keep-alive" -H "x-api-key: 9qQQdRdmvLKZxxuP7tj6DYFMpmeLcdXk"
 ```
 
 or more politely

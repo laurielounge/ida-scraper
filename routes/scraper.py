@@ -10,7 +10,8 @@ from sqlalchemy.orm import Session
 from crud.audit_cruds import fetch_audit_detail_from_ida, fetch_audit_from_ida, fetch_audit_detail_items_from_ida
 from database.base_route import get_db
 from security.secure_access import validate_api_key
-from tasks.scraper_task import run_scrapy_spider
+# Import the Celery task
+from tasks.scraper_task import run_scrapy_spider  # This is the missing import
 
 logger = logging.getLogger("ida_audit")
 router = APIRouter()
@@ -45,7 +46,7 @@ def start_scrape(audit_id: int, db: Session = Depends(get_db), user: Dict = Depe
     logger.info(f"Details are {audit=} {audit_detail=} {audit_detail_item=}")
 
     # Dispatch the Celery task
-    run_scrapy_spider.delay(audit_id, website)
+    run_scrapy_spider.delay(audit_id, website)  # Run the Celery task
     logger.info(f"Celery task for Scrapy spider started with audit_id={audit_id} and website={website}")
 
     return True
