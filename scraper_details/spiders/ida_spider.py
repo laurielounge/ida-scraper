@@ -8,6 +8,7 @@ from scrapy.signalmanager import dispatcher
 
 from crud.scraper_cruds import clear_all_staging_data
 from database.db_connections import DatabaseConnections
+from scrapy_models.debug_items import ImageOnlyPage, AlreadyScannedPage, CanonicalPage
 from scrapy_models.page import PageItem
 
 
@@ -16,40 +17,69 @@ class IDASpider(scrapy.Spider):
 
     def __init__(self, api_identifier=None, audit_id=None, *args, **kwargs):
         super(IDASpider, self).__init__(*args, **kwargs)
-        self.start_urls = [api_identifier]
         self.logger.info(f"Starting the spider with API identifier: {api_identifier} and audit_id {audit_id}")
         self.page_id_counter = 0
+        self.allowed_domains = []
         self.audit_id = audit_id  # Use the passed audit_id
         self.total_pages_discovered = set()  # Track unique URLs
         self.canonical_urls_set = set()  # Track canonical URLs
+
+        # Add scheme if it's missing
+        if not urlparse(api_identifier).scheme:
+            api_identifier = 'https://' + api_identifier
+
+        # Parse the domain and path separately
+        parsed_start_url_parts = urlparse(api_identifier)
+        self.logger.info(f"{parsed_start_url_parts=}")
+
+        base_domain = parsed_start_url_parts.netloc.rstrip('/')  # Extract just the domain
+        base_path = parsed_start_url_parts.path.rstrip('/')  # Extract just the path
+
+        # Handle www and non-www versions properly
+        if base_domain.startswith('www.'):
+            self.allowed_domains = [base_domain, base_domain.replace('www.', '')]
+        else:
+            self.allowed_domains = [base_domain, 'www.' + base_domain]
+
+        # Set base_path for internal link checking
+        self.base_path = base_path
+        self.logger.info(f"Allowed domains set to: {self.allowed_domains}")
+        self.logger.info(f"Base path set to: {self.base_path}")
+
+        # Initialize database and session
         dba = DatabaseConnections()
         db = dba.get_audit_session()
         clear_all_staging_data(db=db, audit_id=self.audit_id)
-        parsed_start_url_parts = urlparse(api_identifier)
-        base_domain = parsed_start_url_parts.netloc.rstrip('/')
-        self.base_path = parsed_start_url_parts.path.rstrip('/')
-        self.allowed_domains = [base_domain]
+
         self.logger.info("We've completed the init and we're ready to start crawling")
         dispatcher.connect(self.handle_redirect, signal=signals.response_received)
 
     def start_requests(self):
         self.logger.info(f"Starting requests with start_urls: {self.start_urls}")
-        for url in self.start_urls:
-            print(f"Making initial request to: {url}")
+        for url in self.allowed_domains:
+            # Check if the URL has a scheme; if not, add 'https://'
+            if not urlparse(url).scheme:
+                url = 'https://' + url
             self.logger.info(f"Making initial request to: {url}")
             yield scrapy.Request(url=url, callback=self.parse)
 
     def handle_redirect(self, response, request, spider):
-        # print("We're handling a redirect")
-        self.logger.info("We're handling a redirect")
-        if response.status in [301, 302] and 'Location' in response.headers:
-            location = response.headers['Location'].decode()
-            redirect_url = self.clean_url(location)
-            if redirect_url in self.total_pages_discovered:
-                self.logger.info(f"Skipping redirected duplicate URL: {redirect_url}")
-                return
-            self.logger.info(f"Handling redirected URL: {redirect_url}")
-            yield scrapy.Request(redirect_url, callback=self.parse)
+        self.logger.info(f"Redirect detected from {request.url} to {response.url}")
+        redirect_url = self.clean_url(response.url)
+        parsed_redirect = urlparse(redirect_url)
+
+        # Check if we are redirected from or to www and update allowed domains accordingly
+        if parsed_redirect.netloc.replace('www.', '') in self.allowed_domains:
+            if 'www.' in parsed_redirect.netloc:
+                self.logger.info(f"Redirecting to www version: {redirect_url}")
+                self.allowed_domains = [parsed_redirect.netloc, parsed_redirect.netloc.replace('www.', '')]
+            else:
+                self.logger.info(f"Redirecting to non-www version: {redirect_url}")
+                self.allowed_domains = [parsed_redirect.netloc, 'www.' + parsed_redirect.netloc]
+
+            self.logger.info(f"Updated allowed domains: {self.allowed_domains}")
+
+        yield scrapy.Request(redirect_url, callback=self.parse)
 
     def parse(self, response):
         cleaned_body = re.sub(r'<noscript.*?</noscript>', '', response.text, flags=re.DOTALL)
@@ -63,8 +93,8 @@ class IDASpider(scrapy.Spider):
 
         if len(img_tags) == 1 and len(body_content) == 1:
             self.logger.info(f"Skipping image-only page: {requested_url}")
-            # image_item = ImageOnlyPage(url=requested_url)
-            # yield image_item
+            image_item = ImageOnlyPage(url=requested_url)
+            yield image_item
             return
 
         # Handle canonical URLs
@@ -79,15 +109,15 @@ class IDASpider(scrapy.Spider):
             alternate_urls = [self.clean_url(url) for url in alternate_urls if url != canonical_url]
             alternate_urls.append(canonical_url)  # Add the canonical URL to the set of alternate URLs
             self.logger.info(f"Found alternate URLs: {alternate_urls}")
-            # canonical_item = CanonicalPage(url=requested_url, canonical_url=canonical_url, alternates=alternate_urls)
-            # yield canonical_item
+            canonical_item = CanonicalPage(url=requested_url, canonical_url=canonical_url, alternates=alternate_urls)
+            yield canonical_item
 
         # If the requested URL was already processed, skip it
         if requested_url in self.total_pages_discovered:
             self.logger.info(f"Skipping already discovered page: {requested_url}")
-            # already_scanned_item = AlreadyScannedPage(url=requested_url)
-            # yield already_scanned_item
-            # return
+            already_scanned_item = AlreadyScannedPage(url=requested_url)
+            yield already_scanned_item
+            return
 
         # Proceed with scraping
         self.page_id_counter += 1
@@ -169,11 +199,21 @@ class IDASpider(scrapy.Spider):
 
     def is_internal_link(self, url):
         parsed_url = urlparse(url)
+
+        # Check if the domain matches any of the allowed domains (www and non-www)
+        domain_allowed = parsed_url.netloc in self.allowed_domains
         p_n = parsed_url.netloc in self.allowed_domains
         p_nl = parsed_url.netloc
-        is_allowed = parsed_url.netloc in self.allowed_domains and parsed_url.path.startswith(self.base_path)
+        # Ensure the path starts with the same base path
+        path_allowed = parsed_url.path.startswith(self.base_path)
+
+        is_allowed = domain_allowed and path_allowed
+        # print(f"url {url} {is_allowed=} {p_n=} {p_nl=} {self.allowed_domains=}")
         # self.logger.info(f"url {url} {is_allowed=} {p_n=} {p_nl=} {self.allowed_domains=}")
-        return parsed_url.netloc in self.allowed_domains and parsed_url.path.startswith(self.base_path)
+        self.logger.info(
+            f"Checking internal link: {url} is_allowed={is_allowed} domain_allowed={domain_allowed} path_allowed={path_allowed}")
+
+        return is_allowed
 
     def clean_url(self, url):
         # print("Cleaning URL: " + url)

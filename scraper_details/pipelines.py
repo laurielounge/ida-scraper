@@ -7,6 +7,7 @@ from crud.audit_cruds import update_first_audit_detail_item
 from database.db_connections import DatabaseConnections
 from logging_mod.logger import logger
 from models.page import Page
+from scrapy_models.debug_items import ImageOnlyPage, AlreadyScannedPage, CanonicalPage
 from scrapy_models.page import PageItem
 
 
@@ -24,7 +25,13 @@ class DatabasePipeline(object):
         self.batch_size = batch_size
         self.page_data_items = []
         self.page_writer = None
+        self.image_writer = None
+        self.already_scanned_writer = None
+        self.canonicals_writer = None
         self.page_csv = None
+        self.image_csv = None
+        self.canonicals_csv = None
+        self.already_scanned_csv = None
         # Open CSV file (overwrite mode)
 
         logger.info("Spider initialised pipelines DatabasePipeline.")
@@ -42,6 +49,9 @@ class DatabasePipeline(object):
             'external_link_count', 'has_structured_data', 'internal_link_count',
             'is_mobile_friendly', 'meta_description_length', 'has_meta_keywords'
         ])
+        self.image_csv = open(f'image_files_{spider.audit_id}.csv', 'w', newline='', encoding='utf-8')
+        self.already_scanned_csv = open(f'already_scanned_{spider.audit_id}.csv', 'w', newline='', encoding='utf-8')
+        self.canonicals_csv = open(f'canonicals_{spider.audit_id}.csv', 'w', newline='', encoding='utf-8')
         self.page_writer.writeheader()  # Write the header
 
     def save_batch(self, spider):
@@ -63,6 +73,16 @@ class DatabasePipeline(object):
             self.records_count += 1  # Increment total records count
             if len(self.page_data_items) >= self.batch_size:
                 self.save_batch(spider)
+        elif isinstance(item, ImageOnlyPage):
+            self.image_writer.writerow({'url': item['url']})
+        elif isinstance(item, AlreadyScannedPage):
+            self.already_scanned_writer.writerow({'url': item['url']})
+        elif isinstance(item, CanonicalPage):
+            self.canonicals_writer.writerow({
+                'url': item['url'],
+                'canonical_url': item['canonical_url'],
+                'alternates': ', '.join(item['alternates'])
+            })
         return item
 
     def close_spider(self, spider):
@@ -82,3 +102,6 @@ class DatabasePipeline(object):
         finally:
             # Close CSV file
             self.page_csv.close()
+            self.image_csv.close()
+            self.already_scanned_csv.close()
+            self.canonicals_csv.close()
