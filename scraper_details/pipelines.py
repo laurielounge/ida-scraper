@@ -50,9 +50,15 @@ class DatabasePipeline(object):
             'is_mobile_friendly', 'meta_description_length', 'has_meta_keywords'
         ])
         self.image_csv = open(f'image_files_{spider.audit_id}.csv', 'w', newline='', encoding='utf-8')
+        self.image_writer = csv.DictWriter(self.image_csv, fieldnames=['url'])
         self.already_scanned_csv = open(f'already_scanned_{spider.audit_id}.csv', 'w', newline='', encoding='utf-8')
+        self.already_scanned_writer = csv.DictWriter(self.already_scanned_csv, fieldnames=['url'])
         self.canonicals_csv = open(f'canonicals_{spider.audit_id}.csv', 'w', newline='', encoding='utf-8')
+        self.canonicals_writer = csv.DictWriter(self.canonicals_csv, fieldnames=['url', 'canonical_url', 'alternates'])
         self.page_writer.writeheader()  # Write the header
+        self.image_writer.writeheader()  # Write the header
+        self.canonicals_writer.writeheader()  # Write the header
+        self.already_scanned_writer.writeheader()  # Write the header
 
     def save_batch(self, spider):
         try:
