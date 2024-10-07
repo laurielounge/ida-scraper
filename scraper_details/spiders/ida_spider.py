@@ -3,6 +3,7 @@ import re
 from urllib.parse import urlparse, urldefrag
 
 import scrapy
+import tldextract
 from scrapy import signals
 from scrapy.signalmanager import dispatcher
 
@@ -31,18 +32,20 @@ class IDASpider(scrapy.Spider):
         # Parse the domain and path separately
         parsed_start_url_parts = urlparse(api_identifier)
         self.logger.info(f"{parsed_start_url_parts=}")
+        ext = tldextract.extract(api_identifier)
+        base_domain = f"{ext.domain}.{ext.suffix}"  # e.g., "inghams.com.au" or "vushstimulation.com"
+        subdomain = ext.subdomain  # e.g., "au" for "au.vushstimulation.com"
 
-        base_domain = parsed_start_url_parts.netloc.rstrip('/')  # Extract just the domain
-        base_path = parsed_start_url_parts.path.rstrip('/')  # Extract just the path
-
-        # Handle www and non-www versions properly
-        if base_domain.startswith('www.'):
-            self.allowed_domains = [base_domain, base_domain.replace('www.', '')]
+        # Handle the allowed domains, taking subdomains into account
+        if subdomain:  # If there's a subdomain like "au" in "au.vushstimulation.com"
+            self.allowed_domains = [f"{subdomain}.{base_domain}"]
         else:
-            self.allowed_domains = [base_domain, 'www.' + base_domain]
+            # Handle both the base domain and the www version if no subdomain exists
+            self.allowed_domains = [base_domain, f"www.{base_domain}"]
+        self.base_domain = parsed_start_url_parts.netloc.rstrip('/')  # Extract just the domain
+        self.base_path = parsed_start_url_parts.path.rstrip('/')  # Extract just the path
 
         # Set base_path for internal link checking
-        self.base_path = base_path
         self.logger.info(f"Allowed domains set to: {self.allowed_domains}")
         self.logger.info(f"Base path set to: {self.base_path}")
 
