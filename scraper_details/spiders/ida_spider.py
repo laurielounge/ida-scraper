@@ -51,6 +51,12 @@ class IDASpider(scrapy.Spider):
             yield scrapy.Request(redirect_url, callback=self.parse)
 
     def parse(self, response):
+        noscript_content = response.xpath('//noscript').getall()
+        if noscript_content:
+            self.logger.info(f"Found {len(noscript_content)} <noscript> tags, removing them")
+            response = response.replace(
+                body=response.body.replace(b"".join([bytes(n, 'utf-8') for n in noscript_content]), b""))
+
         requested_url = self.clean_url(response.url)  # This is the original URL
         self.logger.info(f"Processing requested URL: {requested_url}")
 
@@ -104,7 +110,7 @@ class IDASpider(scrapy.Spider):
             if link.startswith('#') or not link.strip():
                 continue
             full_url = response.urljoin(link)
-            if self.is_internal_link(full_url):
+            if self.is_internal_link(full_url) and not full_url.lower().endswith('.pdf'):
                 internal_link_count += 1
                 cleaned_url = self.clean_url(full_url)
                 if cleaned_url not in self.total_pages_discovered:

@@ -61,7 +61,7 @@ class DatabasePipeline(object):
             self.page_writer.writerow(dict(item))
             self.page_data_items.append(Page(**item))
             self.records_count += 1  # Increment total records count
-            if len(self.page_data_items) > self.batch_size:
+            if len(self.page_data_items) >= self.batch_size:
                 self.save_batch(spider)
         return item
 

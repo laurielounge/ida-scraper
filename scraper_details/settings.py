@@ -1,3 +1,4 @@
+# settings.py
 # Enable cookies
 COOKIES_ENABLED = True
 
