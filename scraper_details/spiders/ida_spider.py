@@ -1,4 +1,5 @@
 # /scraper_details/spiders/ida_spider.py
+import re
 from urllib.parse import urlparse, urldefrag
 
 import scrapy
@@ -51,12 +52,8 @@ class IDASpider(scrapy.Spider):
             yield scrapy.Request(redirect_url, callback=self.parse)
 
     def parse(self, response):
-        noscript_content = response.xpath('//noscript').getall()
-        if noscript_content:
-            self.logger.info(f"Found {len(noscript_content)} <noscript> tags, removing them")
-            response = response.replace(
-                body=response.body.replace(b"".join([bytes(n, 'utf-8') for n in noscript_content]), b""))
-
+        cleaned_body = re.sub(r'<noscript.*?</noscript>', '', response.text, flags=re.DOTALL)
+        response = response.replace(body=cleaned_body.encode('utf-8'))
         requested_url = self.clean_url(response.url)  # This is the original URL
         self.logger.info(f"Processing requested URL: {requested_url}")
 
