@@ -1,12 +1,11 @@
 # tasks/scraper_task.py
-import logging
 import os
 import subprocess
 
 import redis
 from celery import shared_task  # Use shared_task instead of referencing celery_app
 
-logger = logging.getLogger("ida_audit")
+from logging_mod.logger import logger
 
 
 @shared_task  # Use shared_task decorator
@@ -51,7 +50,6 @@ def redis_ping_task():
             return "Redis ping failed!"
     except Exception as e:
         return f"Redis ping failed with error: {str(e)}"
-
 
 
 @shared_task

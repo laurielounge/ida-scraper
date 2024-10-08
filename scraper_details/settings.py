@@ -1,4 +1,8 @@
 # settings.py
+from logging_mod.logger import log_file_path  # Ensure the same log file is used
+
+LOG_FILE = log_file_path  # Use the same log file path defined in logger.py
+
 # Enable cookies
 COOKIES_ENABLED = True
 
@@ -64,7 +68,6 @@ CUSTOM_LOG_LEVELS = {
 
 # Spider Settings
 SPIDER_MODULES = ['scraper_details.spiders']
-NEWSPIDER_MODULE = 'scraper_details.spiders'
 DUPEFILTER_CLASS = 'scrapy.dupefilters.RFPDupeFilter'
 
 # Selenium driver settings

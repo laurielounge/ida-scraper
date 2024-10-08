@@ -47,7 +47,7 @@ class DatabasePipeline(object):
             'status_code', 'meta_description', 'load_time', 'h2_count', 'broken_link_count',
             'audit_id', 'h1_count', 'crawl_depth', 'h2', 'image_link_count', 'h1',
             'external_link_count', 'has_structured_data', 'internal_link_count',
-            'is_mobile_friendly', 'meta_description_length', 'has_meta_keywords'
+            'is_mobile_friendly', 'meta_description_length', 'has_meta_keywords', 'title_count'
         ])
         self.image_csv = open(f'image_files_{spider.audit_id}.csv', 'w', newline='', encoding='utf-8')
         self.image_writer = csv.DictWriter(self.image_csv, fieldnames=['url'])

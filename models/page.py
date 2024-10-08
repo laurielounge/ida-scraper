@@ -39,3 +39,4 @@ class Page(Base):
     is_https = Column(Boolean)
     duplicate_content_flag = Column(Boolean)
     meta_description = Column(String)
+    title_count = Column(Integer)

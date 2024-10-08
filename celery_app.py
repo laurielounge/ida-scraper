@@ -1,6 +1,6 @@
 # celery_app.py
 from celery import Celery
-
+from logging_mod.logger import logger
 # Set up Celery, using Redis as the broker
 celery_app = Celery(
     'scraper_tasks',

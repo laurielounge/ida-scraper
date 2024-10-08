@@ -31,7 +31,7 @@ class BaseDatabaseConnection:
         credentials = self.mssql_credentials[f"{schema_type}_username"], self.mssql_credentials[
             f"{schema_type}_password"]
         con_string = f"mssql+pyodbc://{credentials[0]}:{credentials[1]}@{self.mssql_credentials['hostname']}/{self.database}?driver={self.driver}&TrustServerCertificate=Yes"
-        return create_engine(con_string, echo=True, future=True)
+        return create_engine(con_string, echo=False, future=True)
 
 
 class DatabaseConnections(BaseDatabaseConnection):

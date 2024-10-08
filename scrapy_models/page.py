@@ -29,3 +29,4 @@ class PageItem(scrapy.Item):
     duplicate_content_flag = scrapy.Field()
     broken_link_count = scrapy.Field()
     meta_description = scrapy.Field()
+    title_count = scrapy.Field()

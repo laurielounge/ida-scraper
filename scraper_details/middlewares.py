@@ -1,5 +1,4 @@
 # scraper_details/middlewares.py
-import logging
 import random
 import traceback
 
@@ -8,8 +7,10 @@ from scrapy.exceptions import IgnoreRequest
 from scrapy.http import HtmlResponse
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException, WebDriverException  # Add WebDriverException for more coverage
+from selenium.webdriver.chrome.service import Service
 
-logger = logging.getLogger("ida_audit")
+from logging_mod.logger import logger
+
 logger.debug("Opening middlewares file.")
 
 # List of user agents to rotate
@@ -44,43 +45,84 @@ USER_AGENTS = [
 
 class SeleniumMiddleware:
     def __init__(self):
-        # Initialize your Selenium WebDriver
+        # Initialize the Selenium WebDriver
+        self.driver = self.start_driver()
+
+    def start_driver(self):
         options = webdriver.ChromeOptions()
-        options.add_argument("--headless")
-        options.add_argument("--disable-gpu")
-        options.add_argument("--no-sandbox")
-        self.driver = webdriver.Chrome(options=options)
-        self.driver.set_page_load_timeout(60)
+        for arg in [
+            "--headless",
+            "--disable-gpu",
+            "--no-sandbox",
+            "--disable-dev-shm-usage",
+            "--disable-blink-features=AutomationControlled",
+            '--disable-extensions',
+            '--enable-logging',
+            '--v=1'
+        ]:
+            options.add_argument(arg)
+
+        # Use a Chrome service to start the driver, logging ChromeDriver actions
+        chrome_service = Service(executable_path='/usr/local/bin/chromedriver')  # Specify path to ChromeDriver
+        chrome_service.log_path = '/opt/scraper_service/logs/chrome_output.log'  # Log to a specific file
+
+        logger.info("Starting Chrome WebDriver with Selenium")
+
+        driver = webdriver.Chrome(service=chrome_service, options=options)
+        driver.set_page_load_timeout(60)
+
+        logger.info("Chrome WebDriver started successfully.")
+        return driver
 
     @classmethod
     def from_crawler(cls, crawler):
-        s = cls()
-        crawler.signals.connect(s.spider_closed, signal=signals.spider_closed)
-        return s
+        # This method is used by Scrapy to instantiate the middleware
+        middleware = cls()
+        crawler.signals.connect(middleware.spider_closed, signal=signals.spider_closed)
+        return middleware
 
     def process_request(self, request, spider):
+        spider.logger.info("PROCESSED REQUEST This is coming from spider.logger")
+        logger.info("PROCESSED REQUEST This is coming from custom logger")
+
         if 'cached' in request.meta:
-            # Skip Selenium if response is from cache
-            spider.logger.info(f"Skipping Selenium for cached request: {request.url}")
+            logger.info(f"Skipping Selenium for cached request: {request.url}")
+            spider.logger.info(f"SPIDER LOGGER Skipping Selenium for cached request: {request.url}")
             return None
-        spider.logger.info(f"Using Selenium for request: {request.url}")
+
+        logger.info(f"Using Selenium for request: {request.url}")
+        spider.logger.info(f"SPIDER LOGGER Using Selenium for request: {request.url}")
         try:
             self.driver.get(request.url)
             body = str.encode(self.driver.page_source)
             return HtmlResponse(self.driver.current_url, body=body, encoding='utf-8', request=request)
         except TimeoutException:
-            # Log only the necessary details, no full stack trace
             logger.error(f"Timeout processing request for URL: {request.url}")
+            logger.error(f"Failed to process page: {request.url} due to timeout.")
             return HtmlResponse(request.url, status=504, body=b"Timeout exceeded")
         except WebDriverException as e:
-            # Log a summary of the error, no full stack trace
             logger.error(f"WebDriverException on {request.url}: {str(e)}")
-            return HtmlResponse(request.url, status=500, body=b"WebDriver error")
+            logger.error(f"Failed to process page: {request.url} due to WebDriverException.")
+            self.restart_driver(spider, request)  # Restart driver and retry request
+            return self._retry_request(request)
         except Exception as e:
-            # Log the exception with stack trace for unknown errors
             logger.error(f"Unknown error on {request.url}: {str(e)}")
-            logger.error(traceback.format_exc())  # Capture the full traceback only for unexpected errors
+            logger.error(f"Failed to process page: {request.url} due to unknown error.")
+            logger.error(traceback.format_exc())
             return HtmlResponse(request.url, status=500, body=str(e).encode('utf-8'))
+
+    def restart_driver(self, spider, request):
+        logger.info(f"Restarting Selenium WebDriver due to a crash on {request.url}.")
+        try:
+            self.driver.quit()  # Quit the current driver session
+        except Exception as e:
+            logger.error(f"Error quitting driver on {request.url}: {e}")
+        self.driver = self.start_driver()  # Restart the driver
+
+    def _retry_request(self, request):
+        retry_request = request.copy()
+        retry_request.dont_filter = True  # Ensure retry request isn't filtered as a duplicate
+        return retry_request
 
     def spider_closed(self, spider):
         logger.info("Closing Selenium WebDriver.")
@@ -104,7 +146,6 @@ class CustomMiddleware:
     def process_request(self, request, spider):
         # Set a random User-Agent
         request.headers['User-Agent'] = random.choice(USER_AGENTS)
-        request.headers['Referer'] = 'https://www.example.com'  # Change to a relevant referer
         request.headers['Accept-Language'] = 'en-US,en;q=0.9'
         # Continue processing this request
         return None

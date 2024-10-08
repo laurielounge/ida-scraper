@@ -9,6 +9,7 @@ from scrapy.signalmanager import dispatcher
 
 from crud.scraper_cruds import clear_all_staging_data
 from database.db_connections import DatabaseConnections
+from logging_mod.logger import logger
 from scrapy_models.debug_items import ImageOnlyPage, AlreadyScannedPage, CanonicalPage
 from scrapy_models.page import PageItem
 
@@ -18,7 +19,7 @@ class IDASpider(scrapy.Spider):
 
     def __init__(self, api_identifier=None, audit_id=None, *args, **kwargs):
         super(IDASpider, self).__init__(*args, **kwargs)
-        self.logger.info(f"Starting the spider with API identifier: {api_identifier} and audit_id {audit_id}")
+        logger.info(f"Starting the spider with API identifier: {api_identifier} and audit_id {audit_id}")
         self.page_id_counter = 0
         self.allowed_domains = []
         self.audit_id = audit_id  # Use the passed audit_id
@@ -31,7 +32,7 @@ class IDASpider(scrapy.Spider):
 
         # Parse the domain and path separately
         parsed_start_url_parts = urlparse(api_identifier)
-        self.logger.info(f"{parsed_start_url_parts=}")
+        logger.info(f"{parsed_start_url_parts=}")
         ext = tldextract.extract(api_identifier)
         base_domain = f"{ext.domain}.{ext.suffix}"  # e.g., "inghams.com.au" or "vushstimulation.com"
         subdomain = ext.subdomain  # e.g., "au" for "au.vushstimulation.com"
@@ -46,19 +47,20 @@ class IDASpider(scrapy.Spider):
         self.base_path = parsed_start_url_parts.path.rstrip('/')  # Extract just the path
 
         # Set base_path for internal link checking
-        self.logger.info(f"Allowed domains set to: {self.allowed_domains}")
-        self.logger.info(f"Base path set to: {self.base_path}")
+        logger.info(f"Allowed domains set to: {self.allowed_domains}")
+        logger.info(f"Base path set to: {self.base_path}")
 
         # Initialize database and session
         dba = DatabaseConnections()
         db = dba.get_audit_session()
         clear_all_staging_data(db=db, audit_id=self.audit_id)
 
-        self.logger.info("We've completed the init and we're ready to start crawling")
+        logger.info("We've completed the init and we're ready to start crawling")
         dispatcher.connect(self.handle_redirect, signal=signals.response_received)
 
     def start_requests(self):
-        self.logger.info(f"Starting requests with start_urls: {self.start_urls}")
+        self.logger.info(f"SELF LOGGER Starting requests with start_urls: {self.start_urls}")
+        logger.info(f"LOGGER Starting requests with start_urls: {self.start_urls}")
         for url in self.allowed_domains:
             # Check if the URL has a scheme; if not, add 'https://'
             if not urlparse(url).scheme:
@@ -67,7 +69,7 @@ class IDASpider(scrapy.Spider):
             yield scrapy.Request(url=url, callback=self.parse)
 
     def handle_redirect(self, response, request, spider):
-        self.logger.info(f"Redirect detected from {request.url} to {response.url}")
+        logger.info(f"Redirect detected from {request.url} to {response.url}")
         redirect_url = self.clean_url(response.url)
         parsed_redirect = urlparse(redirect_url)
 
@@ -162,7 +164,9 @@ class IDASpider(scrapy.Spider):
         # Extract metadata from the page
         # print("Creating page item for URL: " + response.url)
         self.logger.info("Creating page item for URL: " + response.url)
-        title = response.css('title::text').get()
+        title = response.xpath('//head/title/text()').get()
+        all_titles = response.xpath('//head/title/text()').getall()
+        title_count = len(all_titles) if all_titles else 0
         title_length = len(title) if title else 0
         crawl_depth = response.meta.get('depth', 0)
         h1_texts = response.css('h1::text').getall()
@@ -196,7 +200,8 @@ class IDASpider(scrapy.Spider):
             has_meta_keywords=bool(response.css('meta[name="keywords"]::attr(content)').get()),
             is_https=urlparse(response.url).scheme == 'https',
             has_structured_data=bool(response.css('script[type="application/ld+json"]').get()),
-            is_mobile_friendly=False
+            is_mobile_friendly=False,
+            title_count=title_count
         )
         return page_item
 
